@@ -1,6 +1,9 @@
 name: build
 
-on: [push]
+on:
+  push:
+  schedule:
+    - cron: '0 0 1 * *'
 
 jobs:
   build-linux-ubuntu:
@@ -8,16 +11,19 @@ jobs:
     steps:
     - name: install dependencies
       run: |
+          sudo apt-get update
           sudo apt-get install cython3
     - name: prepare environment
       run: |
           echo "target_triplet=`gcc -dumpmachine`" >> $GITHUB_ENV
     - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
     - name: autogen
       run: |
           export PYTHON=python3
           export LDFLAGS="-Wl,-rpath=/usr/local/lib"
-          ./autogen.sh
+          ./autogen.sh --enable-debug
     - name: make
       run: make
     - name: make check
@@ -47,6 +53,8 @@ jobs:
           pip3 install cython
       shell: bash
     - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
     - name: autogen
       run: |
           SDKDIR=`xcrun --sdk macosx --show-sdk-path`
@@ -73,7 +81,7 @@ jobs:
             export LIBS="-L/Library/Frameworks/Python.framework/Versions/2.7/lib"
             export PYTHON_EXTRA_LDFLAGS="-u _PyMac_Error /System/Library/Frameworks/Python.framework/Versions/2.7/Python"
           fi
-          ./autogen.sh
+          ./autogen.sh --enable-debug
     - name: make
       run: make
     - name: make check
@@ -91,7 +99,7 @@ jobs:
         name: libplist-latest_macOS
         path: libplist.tar
   build-windows:
-    runs-on: windows-latest
+    runs-on: windows-2019
     defaults:
       run:
         shell: msys2 {0}
@@ -122,9 +130,12 @@ jobs:
           dest=`echo ${{ matrix.msystem }} |tr [:upper:] [:lower:]`
           echo "dest=$dest" >> $GITHUB_ENV
           echo "target_triplet=`gcc -dumpmachine`" >> $GITHUB_ENV
+          git config --global core.autocrlf false
     - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
     - name: autogen
-      run: ./autogen.sh CC=gcc CXX=g++
+      run: ./autogen.sh CC=gcc CXX=g++ --enable-debug
     - name: make
       run: make
     - name: make check

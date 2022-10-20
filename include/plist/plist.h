@@ -109,19 +109,32 @@ extern "C"
      */
     typedef enum
     {
-        PLIST_BOOLEAN,	/**< Boolean, scalar type */
-        PLIST_UINT,	/**< Unsigned integer, scalar type */
-        PLIST_REAL,	/**< Real, scalar type */
-        PLIST_STRING,	/**< ASCII string, scalar type */
-        PLIST_ARRAY,	/**< Ordered array, structured type */
-        PLIST_DICT,	/**< Unordered dictionary (key/value pair), structured type */
-        PLIST_DATE,	/**< Date, scalar type */
-        PLIST_DATA,	/**< Binary data, scalar type */
-        PLIST_KEY,	/**< Key in dictionaries (ASCII String), scalar type */
+        PLIST_BOOLEAN,  /**< Boolean, scalar type */
+        PLIST_UINT,     /**< Unsigned integer, scalar type */
+        PLIST_REAL,     /**< Real, scalar type */
+        PLIST_STRING,   /**< ASCII string, scalar type */
+        PLIST_ARRAY,    /**< Ordered array, structured type */
+        PLIST_DICT,     /**< Unordered dictionary (key/value pair), structured type */
+        PLIST_DATE,     /**< Date, scalar type */
+        PLIST_DATA,     /**< Binary data, scalar type */
+        PLIST_KEY,      /**< Key in dictionaries (ASCII String), scalar type */
         PLIST_UID,      /**< Special type used for 'keyed encoding' */
-        PLIST_NONE	/**< No type */
+        PLIST_NULL,     /**< NULL type */
+        PLIST_NONE      /**< No type */
     } plist_type;
 
+    /**
+     * libplist error values
+     */
+    typedef enum
+    {
+        PLIST_ERR_SUCCESS      =  0,  /**< operation successful */
+        PLIST_ERR_INVALID_ARG  = -1,  /**< one or more of the parameters are invalid */
+        PLIST_ERR_FORMAT       = -2,  /**< the plist contains nodes not compatible with the output format */
+        PLIST_ERR_PARSE        = -3,  /**< parsing of the input format failed */
+        PLIST_ERR_NO_MEM       = -4,  /**< not enough memory to handle the operation */
+        PLIST_ERR_UNKNOWN      = -255 /**< an unspecified error occurred */
+    } plist_err_t;
 
     /********************************************
      *                                          *
@@ -209,6 +222,24 @@ extern "C"
      * @sa #plist_type
      */
     PLIST_API_MSC plist_t plist_new_uid(uint64_t val);
+
+    /**
+     * Create a new plist_t type #PLIST_NULL
+     * @return the created item
+     * @sa #plist_type
+     * @note This type is not valid for all formats, e.g. the XML format
+     *     does not support it.
+     */
+    PLIST_API_MSC plist_t plist_new_null(void);
+
+    /**
+     * Create a new plist_t type #PLIST_NULL
+     * @return the created item
+     * @sa #plist_type
+     * @note This type is not valid for all formats, e.g. the XML format
+     *     does not support it.
+     */
+    PLIST_API_MSC plist_t plist_new_null(void);
 
     /**
      * Destruct a plist_t node and all its children recursively
@@ -382,7 +413,7 @@ extern "C"
      * @param node the item
      * @return the key node of the given item, or NULL.
      */
-	PLIST_API_MSC plist_t plist_dict_item_get_key(plist_t node);
+	  PLIST_API_MSC plist_t plist_dict_item_get_key(plist_t node);
 
     /**
      * Set item identified by key in a #PLIST_DICT node.
@@ -455,6 +486,7 @@ extern "C"
      * @param node the node
      * @param val a pointer to a C-string. This function allocates the memory,
      *            caller is responsible for freeing it.
+     * @note Use plist_mem_free() to free the allocated memory.
      */
     PLIST_API_MSC void plist_get_key_val(plist_t node, char **val);
 
@@ -465,6 +497,7 @@ extern "C"
      * @param node the node
      * @param val a pointer to a C-string. This function allocates the memory,
      *            caller is responsible for freeing it. Data is UTF-8 encoded.
+     * @note Use plist_mem_free() to free the allocated memory.
      */
     PLIST_API_MSC void plist_get_string_val(plist_t node, char **val);
 
@@ -516,6 +549,7 @@ extern "C"
      * @param val a pointer to an unallocated char buffer. This function allocates the memory,
      *            caller is responsible for freeing it.
      * @param length the length of the buffer
+     * @note Use plist_mem_free() to free the allocated memory.
      */
     PLIST_API_MSC void plist_get_data_val(plist_t node, char **val, uint64_t * length);
 
@@ -648,15 +682,10 @@ extern "C"
      * @param plist_xml a pointer to a C-string. This function allocates the memory,
      *            caller is responsible for freeing it. Data is UTF-8 encoded.
      * @param length a pointer to an uint32_t variable. Represents the length of the allocated buffer.
+     * @return PLIST_ERR_SUCCESS on success or a #plist_err_t on failure
+     * @note Use plist_mem_free() to free the allocated memory.
      */
-    PLIST_API_MSC void plist_to_xml(plist_t plist, char **plist_xml, uint32_t * length);
-
-    /**
-     * Frees the memory allocated by plist_to_xml().
-     *
-     * @param plist_xml The buffer allocated by plist_to_xml().
-     */
-    PLIST_API_MSC void plist_to_xml_free(char *plist_xml);
+    PLIST_API_MSC plist_err_t plist_to_xml(plist_t plist, char **plist_xml, uint32_t * length);
 
     /**
      * Export the #plist_t structure to binary format.
@@ -665,15 +694,23 @@ extern "C"
      * @param plist_bin a pointer to a char* buffer. This function allocates the memory,
      *            caller is responsible for freeing it.
      * @param length a pointer to an uint32_t variable. Represents the length of the allocated buffer.
+     * @return PLIST_ERR_SUCCESS on success or a #plist_err_t on failure
+     * @note Use plist_mem_free() to free the allocated memory.
      */
-    PLIST_API_MSC void plist_to_bin(plist_t plist, char **plist_bin, uint32_t * length);
+    PLIST_API_MSC plist_err_t plist_to_bin(plist_t plist, char **plist_bin, uint32_t * length);
 
     /**
-     * Frees the memory allocated by plist_to_bin().
+     * Export the #plist_t structure to JSON format.
      *
-     * @param plist_bin The buffer allocated by plist_to_bin().
+     * @param plist the root node to export
+     * @param plist_json a pointer to a char* buffer. This function allocates the memory,
+     *     caller is responsible for freeing it.
+     * @param length a pointer to an uint32_t variable. Represents the length of the allocated buffer.
+     * @param prettify pretty print the output if != 0
+     * @return PLIST_ERR_SUCCESS on success or a #plist_err_t on failure
+     * @note Use plist_mem_free() to free the allocated memory.
      */
-    PLIST_API_MSC void plist_to_bin_free(char *plist_bin);
+    PLIST_API_MSC plist_err_t plist_to_json(plist_t plist, char **plist_json, uint32_t* length, int prettify);
 
     /**
      * Import the #plist_t structure from XML format.
@@ -681,8 +718,9 @@ extern "C"
      * @param plist_xml a pointer to the xml buffer.
      * @param length length of the buffer to read.
      * @param plist a pointer to the imported plist.
+     * @return PLIST_ERR_SUCCESS on success or a #plist_err_t on failure
      */
-    PLIST_API_MSC void plist_from_xml(const char *plist_xml, uint32_t length, plist_t * plist);
+    PLIST_API_MSC plist_err_t plist_from_xml(const char *plist_xml, uint32_t length, plist_t * plist);
 
     /**
      * Import the #plist_t structure from binary format.
@@ -690,27 +728,45 @@ extern "C"
      * @param plist_bin a pointer to the xml buffer.
      * @param length length of the buffer to read.
      * @param plist a pointer to the imported plist.
+     * @return PLIST_ERR_SUCCESS on success or a #plist_err_t on failure
      */
-    PLIST_API_MSC void plist_from_bin(const char *plist_bin, uint32_t length, plist_t * plist);
+    PLIST_API_MSC plist_err_t plist_from_bin(const char *plist_bin, uint32_t length, plist_t * plist);
+
+    /**
+     * Import the #plist_t structure from JSON format.
+     *
+     * @param json a pointer to the JSON buffer.
+     * @param length length of the buffer to read.
+     * @param plist a pointer to the imported plist.
+     * @return PLIST_ERR_SUCCESS on success or a #plist_err_t on failure
+     */
+    PLIST_API_MSC plist_err_t plist_from_json(const char *json, uint32_t length, plist_t * plist);
 
     /**
      * Import the #plist_t structure from memory data.
      * This method will look at the first bytes of plist_data
-     * to determine if plist_data contains a binary or XML plist.
+     * to determine if plist_data contains a binary, JSON, or XML plist
+     * and tries to parse the data in the appropriate format.
+     * @note This is just a convenience function and the format detection is
+     *     very basic. It checks with plist_is_binary() if the data supposedly
+     *     contains binary plist data, if not it checks if the first byte is
+     *     either '{' or '[' and assumes JSON format, otherwise it will try
+     *     to parse the data as XML.
      *
      * @param plist_data a pointer to the memory buffer containing plist data.
      * @param length length of the buffer to read.
      * @param plist a pointer to the imported plist.
+     * @return PLIST_ERR_SUCCESS on success or a #plist_err_t on failure
      */
-	PLIST_API_MSC void plist_from_memory(const char *plist_data, uint32_t length, plist_t * plist);
+	  PLIST_API_MSC plist_err_t plist_from_memory(const char *plist_data, uint32_t length, plist_t * plist);
 
     /**
-     * Test if in-memory plist data is binary or XML
-     * This method will look at the first bytes of plist_data
-     * to determine if plist_data contains a binary or XML plist.
-     * This method is not validating the whole memory buffer to check if the
-     * content is truly a plist, it's only using some heuristic on the first few
-     * bytes of plist_data.
+     * Test if in-memory plist data is in binary format.
+     * This function will look at the first bytes of plist_data to determine
+     * if it supposedly contains a binary plist.
+     * @note The function is not validating the whole memory buffer to check
+     * if the content is truly a plist, it is only using some heuristic on
+     * the first few bytes of plist_data.
      *
      * @param plist_data a pointer to the memory buffer containing plist data.
      * @param length length of the buffer to read.
@@ -950,6 +1006,36 @@ extern "C"
      *     or 0 if not.
      */
     PLIST_API_MSC int plist_data_val_contains(plist_t datanode, const uint8_t* cmpval, size_t n);
+
+    /**
+     * Free memory allocated by relevant libplist API calls:
+     * - plist_to_xml()
+     * - plist_to_bin()
+     * - plist_get_key_val()
+     * - plist_get_string_val()
+     * - plist_get_data_val()
+     *
+     * @param ptr pointer to the memory to free
+     *
+     * @note Do not use this function to free plist_t nodes, use plist_free()
+     *     instead.
+     */
+    PLIST_API_MSC void plist_mem_free(void* ptr);
+
+    /**
+     * Free memory allocated by relevant libplist API calls:
+     * - plist_to_xml()
+     * - plist_to_bin()
+     * - plist_get_key_val()
+     * - plist_get_string_val()
+     * - plist_get_data_val()
+     *
+     * @param ptr pointer to the memory to free
+     *
+     * @note Do not use this function to free plist_t nodes, use plist_free()
+     *     instead.
+     */
+    void plist_mem_free(void* ptr);
 
     /*@}*/
 
