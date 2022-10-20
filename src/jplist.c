@@ -134,9 +134,9 @@ static int node_to_json(node_t* node, bytearray_t **outbuf, uint32_t depth, int 
     case PLIST_UINT:
         val = (char*)malloc(64);
         if (node_data->length == 16) {
-            val_len = snprintf(val, 64, "%"PRIu64, node_data->intval);
+            val_len = snprintf(val, 64, "%" PRIu64, node_data->intval);
         } else {
-            val_len = snprintf(val, 64, "%"PRIi64, node_data->intval);
+            val_len = snprintf(val, 64, "%" PRIi64, node_data->intval);
         }
         str_buf_append(*outbuf, val, val_len);
         free(val);
@@ -386,7 +386,7 @@ static int node_estimate_size(node_t *node, uint64_t *size, uint32_t depth, int 
     return PLIST_ERR_SUCCESS;
 }
 
-PLIST_API int plist_to_json(plist_t plist, char **json, uint32_t* length, int prettify)
+PLIST_API_MSC plist_err_t plist_to_json(plist_t plist, char **json, uint32_t* length, int prettify)
 {
     uint64_t size = 0;
     int res;
@@ -395,9 +395,9 @@ PLIST_API int plist_to_json(plist_t plist, char **json, uint32_t* length, int pr
         return PLIST_ERR_INVALID_ARG;
     }
 
-    res = node_estimate_size(plist, &size, 0, prettify);
+    res = node_estimate_size((node_t *)plist, &size, 0, prettify);
     if (res < 0) {
-        return res;
+        return (plist_err_t)res;
     }
 
     strbuf_t *outbuf = str_buf_new(size);
@@ -406,17 +406,17 @@ PLIST_API int plist_to_json(plist_t plist, char **json, uint32_t* length, int pr
         return PLIST_ERR_NO_MEM;
     }
 
-    res = node_to_json(plist, &outbuf, 0, prettify);
+    res = node_to_json((node_t*)plist, &outbuf, 0, prettify);
     if (res < 0) {
         str_buf_free(outbuf);
         *json = NULL;
         *length = 0;
-        return res;
+        return (plist_err_t)res;
     }
 
     str_buf_append(outbuf, "\0", 1);
 
-    *json = outbuf->data;
+    *json = (char *)(outbuf->data);
     *length = outbuf->len - 1;
 
     outbuf->data = NULL;
@@ -758,7 +758,7 @@ static plist_t parse_object(const char* js, jsmntok_info_t* ti, int* index)
     return obj;
 }
 
-PLIST_API int plist_from_json(const char *json, uint32_t length, plist_t * plist)
+PLIST_API_MSC plist_err_t plist_from_json(const char *json, uint32_t length, plist_t * plist)
 {
     if (!plist) {
         return PLIST_ERR_INVALID_ARG;
@@ -776,7 +776,7 @@ PLIST_API int plist_from_json(const char *json, uint32_t length, plist_t * plist
     jsmntok_t *tokens = NULL;
 
     do {
-        jsmntok_t* newtokens = realloc(tokens, sizeof(jsmntok_t)*maxtoks);
+        jsmntok_t* newtokens = (jsmntok_t *)realloc(tokens, sizeof(jsmntok_t)*maxtoks);
         if (!newtokens) {
             PLIST_JSON_ERR("%s: Out of memory\n", __func__);
             return PLIST_ERR_NO_MEM;

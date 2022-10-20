@@ -532,9 +532,9 @@ PLIST_API plist_err_t plist_to_xml(plist_t plist, char **plist_xml, uint32_t * l
         return PLIST_ERR_INVALID_ARG;
     }
 
-    res = node_estimate_size(plist, &size, 0);
+    res = node_estimate_size((node_t *)plist, &size, 0);
     if (res < 0) {
-        return res;
+        return (plist_err_t)res;
     }
     size += sizeof(XML_PLIST_PROLOG) + sizeof(XML_PLIST_EPILOG) - 1;
 
@@ -546,12 +546,12 @@ PLIST_API plist_err_t plist_to_xml(plist_t plist, char **plist_xml, uint32_t * l
 
     str_buf_append(outbuf, XML_PLIST_PROLOG, sizeof(XML_PLIST_PROLOG)-1);
 
-    res = node_to_xml(plist, &outbuf, 0);
+    res = node_to_xml((node_t *)plist, &outbuf, 0);
     if (res < 0) {
         str_buf_free(outbuf);
         *plist_xml = NULL;
         *length = 0;
-        return res;
+        return (plist_err_t)res;
     }
 
     str_buf_append(outbuf, XML_PLIST_EPILOG, sizeof(XML_PLIST_EPILOG));
@@ -1477,5 +1477,5 @@ PLIST_API plist_err_t plist_from_xml(const char *plist_xml, uint32_t length, pli
 
     struct _parse_ctx ctx = { plist_xml, plist_xml + length, 0 };
 
-    return node_from_xml(&ctx, plist);
+    return (plist_err_t)node_from_xml(&ctx, plist);
 }

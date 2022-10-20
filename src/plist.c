@@ -209,7 +209,7 @@ PLIST_API plist_err_t plist_from_memory(const char *plist_data, uint32_t length,
             res = plist_from_xml(plist_data, length, plist);
         }
     }
-    return res;
+    return (plist_err_t)res;
 }
 
 plist_t plist_new_node(plist_data_t data)
