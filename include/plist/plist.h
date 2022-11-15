@@ -233,15 +233,6 @@ extern "C"
     PLIST_API_MSC plist_t plist_new_null(void);
 
     /**
-     * Create a new plist_t type #PLIST_NULL
-     * @return the created item
-     * @sa #plist_type
-     * @note This type is not valid for all formats, e.g. the XML format
-     *     does not support it.
-     */
-    PLIST_API_MSC plist_t plist_new_null(void);
-
-    /**
      * Destruct a plist_t node and all its children recursively
      *
      * @param plist the plist to free
@@ -1021,21 +1012,6 @@ extern "C"
      *     instead.
      */
     PLIST_API_MSC void plist_mem_free(void* ptr);
-
-    /**
-     * Free memory allocated by relevant libplist API calls:
-     * - plist_to_xml()
-     * - plist_to_bin()
-     * - plist_get_key_val()
-     * - plist_get_string_val()
-     * - plist_get_data_val()
-     *
-     * @param ptr pointer to the memory to free
-     *
-     * @note Do not use this function to free plist_t nodes, use plist_free()
-     *     instead.
-     */
-    void plist_mem_free(void* ptr);
 
     /*@}*/
 
