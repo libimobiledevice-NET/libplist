@@ -48,7 +48,6 @@
     #define PLIST_API
   #endif
 #endif
-#endif
 
 #include "plist/plist.h"
 
