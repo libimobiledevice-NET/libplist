@@ -44,12 +44,6 @@ extern "C"
 #include <stdint.h>
 #endif
 
-#ifdef _MSC_VER 
-    #define PLIST_API_MSC __declspec( dllexport ) 
-#else  
-    #define PLIST_API_MSC 
-#endif 
-
 /*{{{ deprecation macros */
 #ifdef __llvm__
   #if defined(__has_extension)
