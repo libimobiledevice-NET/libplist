@@ -34,7 +34,6 @@
 #include <limits.h>
 
 #include <node.h>
-#include <node_list.h>
 
 #include "plist.h"
 #include "strbuf.h"
@@ -65,7 +64,16 @@ void plist_json_deinit(void)
     /* deinit JSON stuff */
 }
 
+void plist_json_set_debug(int debug)
+{
+#ifdef DEBUG
+    plist_json_debug = debug;
+#endif
+}
+
 #ifndef HAVE_STRNDUP
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wshadow"
 static char* strndup(const char* str, size_t len)
 {
     char *newstr = (char *)malloc(len+1);
@@ -75,6 +83,7 @@ static char* strndup(const char* str, size_t len)
     }
     return newstr;
 }
+#pragma GCC diagnostic pop
 #endif
 
 static size_t dtostr(char *buf, size_t bufsize, double realval)
@@ -101,7 +110,7 @@ static size_t dtostr(char *buf, size_t bufsize, double realval)
     return len;
 }
 
-static int node_to_json(node_t* node, bytearray_t **outbuf, uint32_t depth, int prettify)
+static plist_err_t node_to_json(node_t node, bytearray_t **outbuf, uint32_t depth, int prettify)
 {
     plist_data_t node_data = NULL;
 
@@ -131,7 +140,7 @@ static int node_to_json(node_t* node, bytearray_t **outbuf, uint32_t depth, int 
         str_buf_append(*outbuf, "null", 4);
 	break;
 
-    case PLIST_UINT:
+    case PLIST_INT:
         val = (char*)malloc(64);
         if (node_data->length == 16) {
             val_len = snprintf(val, 64, "%" PRIu64, node_data->intval);
@@ -185,7 +194,7 @@ static int node_to_json(node_t* node, bytearray_t **outbuf, uint32_t depth, int 
 
     case PLIST_ARRAY: {
         str_buf_append(*outbuf, "[", 1);
-        node_t *ch;
+        node_t ch;
         uint32_t cnt = 0;
         for (ch = node_first_child(node); ch; ch = node_next_sibling(ch)) {
             if (cnt > 0) {
@@ -197,7 +206,7 @@ static int node_to_json(node_t* node, bytearray_t **outbuf, uint32_t depth, int 
                     str_buf_append(*outbuf, "  ", 2);
                 }
             }
-            int res = node_to_json(ch, outbuf, depth+1, prettify);
+            plist_err_t res = node_to_json(ch, outbuf, depth+1, prettify);
             if (res < 0) {
                 return res;
             }
@@ -213,7 +222,7 @@ static int node_to_json(node_t* node, bytearray_t **outbuf, uint32_t depth, int 
         } break;
     case PLIST_DICT: {
         str_buf_append(*outbuf, "{", 1);
-        node_t *ch;
+        node_t ch;
         uint32_t cnt = 0;
         for (ch = node_first_child(node); ch; ch = node_next_sibling(ch)) {
             if (cnt > 0 && cnt % 2 == 0) {
@@ -225,7 +234,7 @@ static int node_to_json(node_t* node, bytearray_t **outbuf, uint32_t depth, int 
                     str_buf_append(*outbuf, "  ", 2);
                 }
             }
-            int res = node_to_json(ch, outbuf, depth+1, prettify);
+            plist_err_t res = node_to_json(ch, outbuf, depth+1, prettify);
             if (res < 0) {
                 return res;
             }
@@ -302,7 +311,7 @@ static int num_digits_u(uint64_t i)
     return n;
 }
 
-static int node_estimate_size(node_t *node, uint64_t *size, uint32_t depth, int prettify)
+static plist_err_t node_estimate_size(node_t node, uint64_t *size, uint32_t depth, int prettify)
 {
     plist_data_t data;
     if (!node) {
@@ -310,10 +319,10 @@ static int node_estimate_size(node_t *node, uint64_t *size, uint32_t depth, int 
     }
     data = plist_get_data(node);
     if (node->children) {
-        node_t *ch;
+        node_t ch;
         unsigned int n_children = node_n_children(node);
         for (ch = node_first_child(node); ch; ch = node_next_sibling(ch)) {
-            int res = node_estimate_size(ch, size, depth + 1, prettify);
+            plist_err_t res = node_estimate_size(ch, size, depth + 1, prettify);
             if (res < 0) {
                 return res;
             }
@@ -324,7 +333,7 @@ static int node_estimate_size(node_t *node, uint64_t *size, uint32_t depth, int 
             *size += n_children-1; // number of ':' and ','
             if (prettify) {
                 *size += n_children; // number of '\n' and extra space
-                *size += n_children * (depth+1); // indent for every 2nd child
+                *size += (uint64_t)n_children * (depth+1); // indent for every 2nd child
                 *size += 1; // additional '\n'
             }
             break;
@@ -333,7 +342,7 @@ static int node_estimate_size(node_t *node, uint64_t *size, uint32_t depth, int 
             *size += n_children-1; // number of ','
             if (prettify) {
                 *size += n_children; // number of '\n'
-                *size += n_children * ((depth+1)<<1); // indent for every child
+                *size += (uint64_t)n_children * ((depth+1)<<1); // indent for every child
                 *size += 1; // additional '\n'
             }
             break;
@@ -349,7 +358,7 @@ static int node_estimate_size(node_t *node, uint64_t *size, uint32_t depth, int 
             *size += data->length;
             *size += 2;
             break;
-        case PLIST_UINT:
+        case PLIST_INT:
             if (data->length == 16) {
                 *size += num_digits_u(data->intval);
             } else {
@@ -361,6 +370,9 @@ static int node_estimate_size(node_t *node, uint64_t *size, uint32_t depth, int 
             break;
         case PLIST_BOOLEAN:
             *size += ((data->boolval) ? 4 : 5);
+            break;
+        case PLIST_NULL:
+            *size += 4;
             break;
         case PLIST_DICT:
         case PLIST_ARRAY:
@@ -386,37 +398,45 @@ static int node_estimate_size(node_t *node, uint64_t *size, uint32_t depth, int 
     return PLIST_ERR_SUCCESS;
 }
 
-PLIST_API_MSC plist_err_t plist_to_json(plist_t plist, char **json, uint32_t* length, int prettify)
+PLIST_API plist_err_t plist_to_json(plist_t plist, char **plist_json, uint32_t* length, int prettify)
 {
     uint64_t size = 0;
-    int res;
+    plist_err_t res;
 
-    if (!plist || !json || !length) {
+    if (!plist || !plist_json || !length) {
         return PLIST_ERR_INVALID_ARG;
     }
 
-    res = node_estimate_size((node_t *)plist, &size, 0, prettify);
+    if (!PLIST_IS_DICT(plist) && !PLIST_IS_ARRAY(plist)) {
+        PLIST_JSON_WRITE_ERR("plist data is not valid for JSON format\n");
+        return PLIST_ERR_FORMAT;
+    }
+
+    res = node_estimate_size((node_t)plist, &size, 0, prettify);
     if (res < 0) {
         return (plist_err_t)res;
     }
 
     strbuf_t *outbuf = str_buf_new(size);
     if (!outbuf) {
-        PLIST_JSON_WRITE_ERR("Could not allocate output buffer");
+        PLIST_JSON_WRITE_ERR("Could not allocate output buffer\n");
         return PLIST_ERR_NO_MEM;
     }
 
-    res = node_to_json((node_t*)plist, &outbuf, 0, prettify);
+    res = node_to_json((node_t)plist, &outbuf, 0, prettify);
     if (res < 0) {
         str_buf_free(outbuf);
-        *json = NULL;
+        *plist_json = NULL;
         *length = 0;
         return (plist_err_t)res;
+    }
+    if (prettify) {
+        str_buf_append(outbuf, "\n", 1);
     }
 
     str_buf_append(outbuf, "\0", 1);
 
-    *json = (char *)(outbuf->data);
+    *plist_json = (char*)outbuf->data;
     *length = outbuf->len - 1;
 
     outbuf->data = NULL;
@@ -439,6 +459,8 @@ static int64_t parse_decimal(const char* str, const char* str_end, char** endp)
 
     if (str[0] == '-') {
         is_neg = 1;
+        (*endp)++;
+    } else if (str[0] == '+') {
         (*endp)++;
     }
     if (is_neg) {
@@ -493,11 +515,16 @@ static plist_t parse_primitive(const char* js, jsmntok_info_t* ti, int* index)
         val = plist_new_node(data);
     } else if (isdigit(str_val[0]) || (str_val[0] == '-' && str_val+1 < str_end && isdigit(str_val[1]))) {
         char* endp = (char*)str_val;
+        int is_neg = (str_val[0] == '-');
         int64_t intpart = parse_decimal(str_val, str_end, &endp);
         if (endp >= str_end) {
             /* integer */
-            val = plist_new_uint((uint64_t)intpart);
-        } else if ((*endp == '.' && endp+1 < str_end && isdigit(*(endp+1))) || ((*endp == 'e' || *endp == 'E') && endp+1 < str_end && (isdigit(*(endp+1)) || ((*(endp+1) == '-') && endp+2 < str_end && isdigit(*(endp+2)))))) {
+            if (is_neg || intpart <= INT64_MAX) {
+                val = plist_new_int(intpart);
+            } else {
+                val = plist_new_uint((uint64_t)intpart);
+            }
+        } else if ((*endp == '.' && endp+1 < str_end && isdigit(*(endp+1))) || ((*endp == 'e' || *endp == 'E') && endp+1 < str_end && (isdigit(*(endp+1)) || (((*(endp+1) == '-') || (*(endp+1) == '+')) && endp+2 < str_end && isdigit(*(endp+2)))))) {
             /* floating point */
             double dval = (double)intpart;
             char* fendp = endp;
@@ -505,7 +532,6 @@ static plist_t parse_primitive(const char* js, jsmntok_info_t* ti, int* index)
             do {
                 if (*endp == '.') {
                     fendp++;
-                    int is_neg = (str_val[0] == '-');
                     double frac = 0;
                     double p = 0.1;
                     while (fendp < str_end && isdigit(*fendp)) {
@@ -522,7 +548,7 @@ static plist_t parse_primitive(const char* js, jsmntok_info_t* ti, int* index)
                 if (fendp >= str_end) {
                     break;
                 }
-                if (fendp+1 < str_end && (*fendp == 'e' || *fendp == 'E') && (isdigit(*(fendp+1)) || ((*(fendp+1) == '-') && fendp+2 < str_end && isdigit(*(fendp+2))))) {
+                if (fendp+1 < str_end && (*fendp == 'e' || *fendp == 'E') && (isdigit(*(fendp+1)) || (((*(fendp+1) == '-') || (*(fendp+1) == '+')) && fendp+2 < str_end && isdigit(*(fendp+2))))) {
                     int64_t exp = parse_decimal(fendp+1, str_end, &fendp);
                     dval = dval * pow(10, (double)exp);
                 } else {
@@ -758,7 +784,7 @@ static plist_t parse_object(const char* js, jsmntok_info_t* ti, int* index)
     return obj;
 }
 
-PLIST_API_MSC plist_err_t plist_from_json(const char *json, uint32_t length, plist_t * plist)
+PLIST_API plist_err_t plist_from_json(const char *json, uint32_t length, plist_t * plist)
 {
     if (!plist) {
         return PLIST_ERR_INVALID_ARG;
@@ -776,7 +802,7 @@ PLIST_API_MSC plist_err_t plist_from_json(const char *json, uint32_t length, pli
     jsmntok_t *tokens = NULL;
 
     do {
-        jsmntok_t* newtokens = (jsmntok_t *)realloc(tokens, sizeof(jsmntok_t)*maxtoks);
+        jsmntok_t* newtokens = (jsmntok_t*)realloc(tokens, sizeof(jsmntok_t)*maxtoks);
         if (!newtokens) {
             PLIST_JSON_ERR("%s: Out of memory\n", __func__);
             return PLIST_ERR_NO_MEM;

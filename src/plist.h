@@ -26,8 +26,6 @@
 #include <config.h>
 #endif
 
-#include "plist/plist.h"
-
 #include <sys/types.h>
 #include <sys/stat.h>
 
@@ -39,19 +37,20 @@
 #include <sys/time.h>
 #endif
 
-#ifdef _MSC_VER
+#ifdef LIBPLIST_STATIC
+  #define PLIST_API
+#elif defined(_MSC_VER) || defined(_WIN32)
   #define PLIST_API __declspec( dllexport )
 #else
-#ifdef WIN32
-  #define PLIST_API __declspec( dllexport )
-#else
-  #ifdef HAVE_FVISIBILITY
+  #if __GNUC__ >= 4
     #define PLIST_API __attribute__((visibility("default")))
   #else
     #define PLIST_API
   #endif
 #endif
 #endif
+
+#include "plist/plist.h"
 
 struct plist_data_s
 {
@@ -76,5 +75,11 @@ plist_data_t plist_new_plist_data(void);
 void plist_free_data(plist_data_t data);
 int plist_data_compare(const void *a, const void *b);
 
+extern plist_err_t plist_write_to_string_default(plist_t plist, char **output, uint32_t* length, plist_write_options_t options);
+extern plist_err_t plist_write_to_string_limd(plist_t plist, char **output, uint32_t* length, plist_write_options_t options);
+extern plist_err_t plist_write_to_string_plutil(plist_t plist, char **output, uint32_t* length, plist_write_options_t options);
+extern plist_err_t plist_write_to_stream_default(plist_t plist, FILE *stream, plist_write_options_t options);
+extern plist_err_t plist_write_to_stream_limd(plist_t plist, FILE *stream, plist_write_options_t options);
+extern plist_err_t plist_write_to_stream_plutil(plist_t plist, FILE *stream, plist_write_options_t options);
 
 #endif
