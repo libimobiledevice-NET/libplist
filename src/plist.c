@@ -1923,7 +1923,7 @@ plist_err_t plist_write_to_string(plist_t plist, char **output, uint32_t* length
     return err;
 }
 
-plist_err_t plist_write_to_stream(plist_t plist, FILE *stream, plist_format_t format, plist_write_options_t options)
+plist_err_t plist_write_to_stream(plist_t plist, FILE_PTR stream, plist_format_t format, plist_write_options_t options)
 {
     if (!plist || !stream) {
         return PLIST_ERR_INVALID_ARG;
@@ -1992,4 +1992,15 @@ const char* libplist_version()
 #error PACKAGE_VERSION is not defined!
 #endif
 	return PACKAGE_VERSION;
+}
+
+
+FILE_PTR plist_stream_file_open(const char* filename, const char* mode)
+{
+    return fopen(filename, mode);
+}
+
+int plist_stream_file_close(FILE_PTR file)
+{
+    return fclose(file);
 }

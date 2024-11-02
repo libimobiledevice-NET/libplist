@@ -95,6 +95,7 @@ extern "C"
      */
     /*@{*/
 
+    typedef FILE* FILE_PTR;
 
     /**
      * The basic plist abstract data type.
@@ -1042,7 +1043,7 @@ extern "C"
      *     (basically all output-only formats) are directly and efficiently written to the stream;
      *     the other formats are written to a memory buffer first.
      */
-    PLIST_API plist_err_t plist_write_to_stream(plist_t plist, FILE* stream, plist_format_t format, plist_write_options_t options);
+    PLIST_API plist_err_t plist_write_to_stream(plist_t plist, FILE_PTR stream, plist_format_t format, plist_write_options_t options);
 
     /**
      * Write the #plist_t structure to a file at given path using the given format and options.
@@ -1381,6 +1382,26 @@ extern "C"
      * @return The libplist version as static ascii string
      */
     PLIST_API const char* libplist_version();
+
+
+    /* C# marshalling helpers */
+
+    /**
+     * Creates a FILE* given the name and mode.
+     *
+     * @param filename File name.
+     * @param mode File mode.
+     * @note Used so a stream can be passed to plist_write_to_stream(). Must be closed afterwards using file_close().
+     */
+    PLIST_API FILE_PTR plist_stream_file_open(const char* filename, const char* mode);
+
+    /**
+     * Closes a file.
+     *
+     * @param file The file to close.
+     * @note Used to close after a stream is passed to plist_write_to_stream().
+     */
+    PLIST_API int plist_stream_file_close(FILE_PTR file);
 
     /*@}*/
 
