@@ -398,7 +398,7 @@ static plist_err_t node_estimate_size(node_t node, uint64_t *size, uint32_t dept
     return PLIST_ERR_SUCCESS;
 }
 
-PLIST_API plist_err_t plist_to_json(plist_t plist, char **plist_json, uint32_t* length, int prettify)
+plist_err_t plist_to_json(plist_t plist, char **plist_json, uint32_t* length, int prettify)
 {
     uint64_t size = 0;
     plist_err_t res;
@@ -414,7 +414,7 @@ PLIST_API plist_err_t plist_to_json(plist_t plist, char **plist_json, uint32_t* 
 
     res = node_estimate_size((node_t)plist, &size, 0, prettify);
     if (res < 0) {
-        return (plist_err_t)res;
+        return res;
     }
 
     strbuf_t *outbuf = str_buf_new(size);
@@ -428,7 +428,7 @@ PLIST_API plist_err_t plist_to_json(plist_t plist, char **plist_json, uint32_t* 
         str_buf_free(outbuf);
         *plist_json = NULL;
         *length = 0;
-        return (plist_err_t)res;
+        return res;
     }
     if (prettify) {
         str_buf_append(outbuf, "\n", 1);
@@ -784,7 +784,7 @@ static plist_t parse_object(const char* js, jsmntok_info_t* ti, int* index)
     return obj;
 }
 
-PLIST_API plist_err_t plist_from_json(const char *json, uint32_t length, plist_t * plist)
+plist_err_t plist_from_json(const char *json, uint32_t length, plist_t * plist)
 {
     if (!plist) {
         return PLIST_ERR_INVALID_ARG;

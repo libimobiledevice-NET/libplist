@@ -540,7 +540,7 @@ plist_err_t plist_to_xml(plist_t plist, char **plist_xml, uint32_t * length)
 
     res = node_estimate_size((node_t)plist, &size, 0);
     if (res < 0) {
-        return (plist_err_t)res;
+        return res;
     }
     size += sizeof(XML_PLIST_PROLOG) + sizeof(XML_PLIST_EPILOG) - 1;
 
@@ -557,7 +557,7 @@ plist_err_t plist_to_xml(plist_t plist, char **plist_xml, uint32_t * length)
         str_buf_free(outbuf);
         *plist_xml = NULL;
         *length = 0;
-        return (plist_err_t)res;
+        return res;
     }
 
     str_buf_append(outbuf, XML_PLIST_EPILOG, sizeof(XML_PLIST_EPILOG));
@@ -1483,5 +1483,5 @@ plist_err_t plist_from_xml(const char *plist_xml, uint32_t length, plist_t * pli
 
     struct _parse_ctx ctx = { plist_xml, plist_xml + length, 0 };
 
-    return (plist_err_t)node_from_xml(&ctx, plist);
+    return node_from_xml(&ctx, plist);
 }
